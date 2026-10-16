@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timedelta
 from functools import wraps
 import sqlite3
@@ -6,9 +7,27 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from werkzeug.security import generate_password_hash, check_password_hash
 
 BASE = Path(__file__).resolve().parent
+
+
+def resolve_database_path():
+    override = os.environ.get('DATABASE_PATH')
+    candidate = Path(override) if override else BASE / 'auction.db'
+
+    try:
+        candidate.parent.mkdir(parents=True, exist_ok=True)
+        temp_path = candidate.parent / '.db-write-check'
+        temp_path.touch(exist_ok=True)
+        temp_path.unlink(missing_ok=True)
+        return str(candidate)
+    except OSError:
+        fallback = Path('/tmp') / 'auction.db'
+        fallback.parent.mkdir(parents=True, exist_ok=True)
+        return str(fallback)
+
+
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'change-this-demo-secret-before-deployment'
-app.config['DATABASE'] = str(BASE / 'auction.db')
+app.config['DATABASE'] = resolve_database_path()
 
 def db():
     if 'db' not in g:
